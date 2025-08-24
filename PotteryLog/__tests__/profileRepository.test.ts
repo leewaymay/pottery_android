@@ -1,6 +1,5 @@
 jest.mock('../src/db', () => {
-  type Row = any;
-  const state = { profiles: [] as Row[] };
+  const state = { profiles: [] } as any;
   let autoId = 1;
   const runAsync = async (sql: string, params: any[] = []) => {
     const up = sql.trim().toUpperCase();
