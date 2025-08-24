@@ -1,7 +1,6 @@
 jest.mock('../src/db', () => {
-  type Row = any;
-  const state = { profiles: [] as Row[], pieces: [] as Row[], photos: [] as Row[] };
-  let autoIds = { profiles: 1, pieces: 1, photos: 1 };
+  const state = { profiles: [], pieces: [], photos: [] } as any;
+  let autoIds = { profiles: 1, pieces: 1, photos: 1 } as any;
   const runAsync = async (sql: string, params: any[] = []) => {
     const up = sql.trim().toUpperCase();
     if (up.startsWith('DELETE FROM PROFILES')) { state.profiles = []; return { changes: 0, lastInsertRowId: 0 }; }

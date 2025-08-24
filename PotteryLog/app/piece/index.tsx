@@ -4,6 +4,7 @@ import { View, Text, TextInput, ScrollView, TouchableOpacity, Image, StyleSheet,
 import * as ImagePicker from 'expo-image-picker';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { pieceRepository } from '../../src/repos/pieceRepository';
+import { photoRepository } from '../../src/repos/photoRepository';
 import { useActiveProfileStore } from '../../src/state/profileStore';
 
 export default function PieceDetailScreen() {
@@ -16,6 +17,12 @@ export default function PieceDetailScreen() {
     enabled: !isNew,
     queryKey: ['piece', params.id],
     queryFn: () => pieceRepository.getPieceById(Number(params.id)),
+  });
+
+  const { data: photos } = useQuery({
+    enabled: !!data?.id,
+    queryKey: ['photos', data?.id],
+    queryFn: () => photoRepository.listByPiece(data!.id!),
   });
 
   const [title, setTitle] = React.useState<string>(data?.title ?? '');
@@ -90,6 +97,18 @@ export default function PieceDetailScreen() {
     }
   };
 
+  const addAdditionalPhoto = async () => {
+    if (!data?.id) return;
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') { Alert.alert('Permission required', 'Please allow photo library access.'); return; }
+    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, quality: 0.8 });
+    const asset = !result.canceled ? result.assets?.[0] : undefined;
+    if (asset?.uri) {
+      await photoRepository.addPhoto({ pieceId: data.id, uri: asset.uri });
+      await qc.invalidateQueries({ queryKey: ['photos', data.id] });
+    }
+  };
+
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <View style={{ height: 12 }} />
@@ -111,6 +130,20 @@ export default function PieceDetailScreen() {
       <View style={styles.row}><Text style={styles.label}>Glazed</Text><TextInput value={dates.glazedOn} onChangeText={(t)=>setDates(p=>({...p, glazedOn:t}))} style={styles.input} placeholder="YYYY-MM-DD" /></View>
       <View style={styles.row}><Text style={styles.label}>Glaze fired</Text><TextInput value={dates.glazeFiredOn} onChangeText={(t)=>setDates(p=>({...p, glazeFiredOn:t}))} style={styles.input} placeholder="YYYY-MM-DD" /></View>
       <View style={styles.row}><Text style={styles.label}>Glaze</Text><TextInput value={glaze} onChangeText={setGlaze} style={styles.input} placeholder="e.g. Celadon" /></View>
+
+      {!!data?.id && (
+        <View style={{ marginTop: 16 }}>
+          <View style={{ flexDirection:'row', justifyContent:'space-between', alignItems:'center' }}>
+            <Text style={{ fontSize:16, fontWeight:'600' }}>Additional photos</Text>
+            <TouchableOpacity onPress={addAdditionalPhoto}><Text style={{ color:'#3366ff' }}>Add</Text></TouchableOpacity>
+          </View>
+          <View style={{ flexDirection:'row', flexWrap:'wrap', gap:8, marginTop:8 }}>
+            {(photos ?? []).map((p) => (
+              <Image key={String(p.id)} source={{ uri: p.uri }} style={{ width: 100, height: 100, borderRadius: 8, backgroundColor:'#eee' }} />
+            ))}
+          </View>
+        </View>
+      )}
 
       <TouchableOpacity style={styles.save} onPress={() => upsertMutation.mutate()}>
         <Text style={{ color: 'white', fontSize: 16 }}>Save</Text>
